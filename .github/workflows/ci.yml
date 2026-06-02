@@ -1,4 +1,4 @@
-name: CI Pipeline - Spring PetClinic
+name: CI/CD Pipeline - Spring PetClinic
 
 on:
   push:
@@ -15,7 +15,13 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0 # Necesario para un análisis preciso de SonarCloud
+        fetch-depth: 0
+
+    # --- PASO DEVSECOPS: ESCANEO DE SECRETOS ---
+    - name: Run Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up JDK 21
       uses: actions/setup-java@v4
@@ -29,21 +35,20 @@ jobs:
         cd app
         mvn clean verify
 
-
-# --- PASO DEVSECOPS: ANÁLISIS ESTÁTICO DE CALIDAD ---
-    # Nota: Requiere configurar SONAR_TOKEN en los Secrets de tu repositorio de GitHub
+    # --- PASO DEVSECOPS: ANÁLISIS ESTÁTICO DE CALIDAD ---
     - name: SonarCloud Scan
       uses: SonarSource/sonarcloud-github-action@master
       env:
-        GITHUB_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       with:
         projectBaseDir: app
         args: >
-          -Dsonar.projectKey=Michael574a_PetClinic_Project
-          -Dsonar.organization=Michael574a
+          -Dsonar.projectKey=StevenISMAEL_PetClinic-devops2
+          -Dsonar.organization=stevenismael
           -Dsonar.qualitygate.wait=true
           -Dsonar.java.binaries=target/classes
+
   docker-build:
     name: Containerize & Security Scan
     needs: build-and-test
@@ -76,12 +81,11 @@ jobs:
       with:
         image-ref: 'petclinic:test'
         format: 'table'
-        exit-code: '1' # Bloquea el pipeline si encuentra vulnerabilidades CRÍTICAS
+        exit-code: '1'
         ignore-unfixed: true
         vuln-type: 'os,library'
         severity: 'CRITICAL'
 
-    # Si Triv no encuentra fallos críticos, se procede a publicar la imagen de producción
     - name: Push Image to GHCR
       uses: docker/build-push-action@v5
       with:
@@ -90,3 +94,48 @@ jobs:
         tags: |
           ghcr.io/${{ github.repository }}/petclinic:latest
           ghcr.io/${{ github.repository }}/petclinic:${{ github.sha }}
+
+  deploy-staging:
+    name: Deploy to Staging & DAST
+    needs: docker-build
+    runs-on: ubuntu-latest
+    environment: staging
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Deploy to Staging K8s
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          kubectl set image deployment/petclinic petclinic=ghcr.io/${{ github.repository }}/petclinic:${{ github.sha }} -n staging
+          kubectl rollout status deployment/petclinic -n staging
+
+    # --- PASO DEVSECOPS: ESCANEO DINÁMICO (DAST) ---
+    - name: OWASP ZAP Baseline Scan (DAST)
+      uses: zaproxy/action-baseline@v0.12.0
+      with:
+        target: 'http://${{ secrets.EC2_HOST }}:8080'
+        fail_action: false
+
+  deploy-production:
+    name: Deploy to Production
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: 
+      name: production
+      
+    steps:
+    - name: Deploy to Production K8s
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          kubectl set image deployment/petclinic petclinic=ghcr.io/${{ github.repository }}/petclinic:${{ github.sha }} -n production
+          kubectl rollout status deployment/petclinic -n production
