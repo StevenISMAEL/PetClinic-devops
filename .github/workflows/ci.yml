@@ -1,4 +1,4 @@
-name: CI/CD Pipeline - Spring PetClinic
+name: CD Pipeline - Deployment
 
 on:
   push:
