@@ -1,4 +1,4 @@
-name: CD Pipeline - Deployment
+name: CI/CD Pipeline - Spring PetClinic
 
 on:
   push:
@@ -39,7 +39,7 @@ jobs:
     - name: SonarCloud Scan
       uses: SonarSource/sonarcloud-github-action@master
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       with:
         projectBaseDir: app
@@ -86,14 +86,18 @@ jobs:
         vuln-type: 'os,library'
         severity: 'CRITICAL'
 
+    # Corrección para repositorios con letras mayúsculas
+    - name: Convert repository name to lowercase
+      run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
     - name: Push Image to GHCR
       uses: docker/build-push-action@v5
       with:
         context: ./app
         push: true
         tags: |
-          ghcr.io/${{ github.repository }}/petclinic:latest
-          ghcr.io/${{ github.repository }}/petclinic:${{ github.sha }}
+          ghcr.io/${{ env.REPO_LC }}/petclinic:latest
+          ghcr.io/${{ env.REPO_LC }}/petclinic:${{ github.sha }}
 
   deploy-staging:
     name: Deploy to Staging & DAST
@@ -105,6 +109,9 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
+    - name: Convert repository name to lowercase
+      run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
     - name: Deploy to Staging K8s
       uses: appleboy/ssh-action@v1.0.3
       with:
@@ -112,30 +119,4 @@ jobs:
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          kubectl set image deployment/petclinic petclinic=ghcr.io/${{ github.repository }}/petclinic:${{ github.sha }} -n staging
-          kubectl rollout status deployment/petclinic -n staging
-
-    # --- PASO DEVSECOPS: ESCANEO DINÁMICO (DAST) ---
-    - name: OWASP ZAP Baseline Scan (DAST)
-      uses: zaproxy/action-baseline@v0.12.0
-      with:
-        target: 'http://${{ secrets.EC2_HOST }}:8080'
-        fail_action: false
-
-  deploy-production:
-    name: Deploy to Production
-    needs: deploy-staging
-    runs-on: ubuntu-latest
-    environment: 
-      name: production
-      
-    steps:
-    - name: Deploy to Production K8s
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
-        script: |
-          kubectl set image deployment/petclinic petclinic=ghcr.io/${{ github.repository }}/petclinic:${{ github.sha }} -n production
-          kubectl rollout status deployment/petclinic -n production
+          kubectl set image deployment/petclinic petclinic
