@@ -160,3 +160,4 @@ jobs:
         kubectl apply -f k8s/db-secret.yaml
         # 4. Aplicamos el resto
         kubectl apply -f k8s/
+        
