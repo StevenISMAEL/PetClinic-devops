@@ -153,5 +153,11 @@ jobs:
 
     - name: Deploy to Kubernetes
       run: |
-        # Aquí aplicaremos los manifiestos YAML actualizados
+        # 1. Aseguramos que el namespace exista y esperamos a que esté listo
+        kubectl apply -f k8s/namespace.yaml
+        # 2. Esperamos unos segundos para que la API de Kubernetes lo procese
+        sleep 10
+        # 3. Aplicamos el secreto primero (para que el deployment no falle por falta de credenciales)
+        kubectl apply -f k8s/db-secret.yaml
+        # 4. Aplicamos el resto
         kubectl apply -f k8s/
