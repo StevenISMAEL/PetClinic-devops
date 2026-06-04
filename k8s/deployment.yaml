@@ -32,6 +32,13 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "postgres"
+        # --- NUEVA VARIABLE DESDE CONFIGMAP ---
+        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK
+          valueFrom:
+            configMapKeyRef:
+              name: petclinic-config
+              key: LOG_LEVEL
+        # --------------------------------------
         - name: POSTGRES_URL
           valueFrom:
             secretKeyRef:
