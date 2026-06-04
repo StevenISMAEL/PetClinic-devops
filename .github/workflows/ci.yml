@@ -47,6 +47,7 @@ jobs:
           -Dsonar.organization=stevenismael
           -Dsonar.qualitygate.wait=true
           -Dsonar.java.binaries=target/classes
+
   docker-build:
     name: Containerize & Security Scan
     needs: build-and-test
@@ -100,7 +101,6 @@ jobs:
     name: Provision Infrastructure (Terraform)
     needs: docker-build
     runs-on: ubuntu-latest
-    # Solo ejecuta Terraform si estamos en la rama principal (producción)
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -129,7 +129,7 @@ jobs:
     - name: Terraform Apply
       run: terraform apply -auto-approve
 
-# --- PASO CD: DESPLIEGUE A STAGING (AUTOMÁTICO) ---
+  # --- PASO CD: DESPLIEGUE A STAGING (AUTOMÁTICO) ---
   deploy-staging:
     name: Deploy to Staging Environment
     needs: terraform-deploy
@@ -151,7 +151,7 @@ jobs:
     - name: Deploy to Kubernetes (Staging)
       run: |
         echo "Modificando YAMLs para apuntar a Staging..."
-        sed -i 's/devops-lab/staging/g' k8s/*.yaml
+        sed -i 's/devops-lab/staging/g' k8s/*.yaml k8s/*.yml
         
         kubectl apply -f k8s/namespace.yaml
         sleep 5
