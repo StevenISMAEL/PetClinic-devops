@@ -51,5 +51,5 @@ resource "azurerm_postgresql_flexible_server_database" "db" {
   name      = "petclinic"
   server_id = azurerm_postgresql_flexible_server.postgres.id
   charset   = "UTF8"
-  collation = "en_US.UTF8"
+  collation = "en_US.utf8"
 }
