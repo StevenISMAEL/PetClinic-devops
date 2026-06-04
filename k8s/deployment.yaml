@@ -22,8 +22,8 @@ spec:
     spec:
       containers:
       - name: petclinic
-        # IMPORTANTE: Cambia <tu-usuario-github> por tu usuario real en minúsculas
-        image: ghcr.io/<stevenismael>/petclinic:latest
+
+        image: ghcr.io/stevenismael/petclinic-devops/petclinic:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
