@@ -7,7 +7,7 @@ variable "location" {
 variable "resource_group_name" {
   description = "Nombre del Grupo de Recursos"
   type        = string
-  default     = "rg-petclinic-devops"
+  default     = "rg-petclinic-devops2"
 }
 
 variable "aks_name" {
