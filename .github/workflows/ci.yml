@@ -129,34 +129,58 @@ jobs:
     - name: Terraform Apply
       run: terraform apply -auto-approve
 
-  # --- PASO CD: DESPLIEGUE A KUBERNETES (AKS) ---
-  deploy-to-aks:
-    name: Deploy to Azure Kubernetes Service
+# --- PASO CD: DESPLIEGUE A STAGING (AUTOMÁTICO) ---
+  deploy-staging:
+    name: Deploy to Staging Environment
     needs: terraform-deploy
     runs-on: ubuntu-latest
+    environment: staging # Se vincula al entorno de GitHub sin protección
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
-
+      
     - name: Azure Login
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-    - name: Set up Kubectl
-      uses: azure/setup-kubectl@v3
-
+        
     - name: Get AKS Credentials
       run: az aks get-credentials --resource-group rg-petclinic-devops --name aks-petclinic
-
-    - name: Deploy to Kubernetes
+      
+    - name: Deploy to Kubernetes (Staging)
       run: |
-        # 1. Aseguramos que el namespace exista y esperamos a que esté listo
+        echo "Modificando YAMLs para apuntar a Staging..."
+        sed -i 's/devops-lab/staging/g' k8s/*.yaml
+        
         kubectl apply -f k8s/namespace.yaml
-        # 2. Esperamos unos segundos para que la API de Kubernetes lo procese
-        sleep 10
-        # 3. Aplicamos el secreto primero (para que el deployment no falle por falta de credenciales)
+        sleep 5
         kubectl apply -f k8s/db-secret.yaml
-        # 4. Aplicamos el resto
+        kubectl apply -f k8s/
+
+  # --- PASO CD: DESPLIEGUE A PRODUCCIÓN (REQUIERE APROBACIÓN) ---
+  deploy-production:
+    name: Deploy to Production Environment
+    needs: deploy-staging # IMPORTANTE: Solo se ejecuta si Staging fue exitoso
+    runs-on: ubuntu-latest
+    environment: production # ESTO ACTIVA LA PAUSA DE APROBACIÓN MANUAL EN GITHUB
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Get AKS Credentials
+      run: az aks get-credentials --resource-group rg-petclinic-devops --name aks-petclinic
+      
+    - name: Deploy to Kubernetes (Production)
+      run: |
+        echo "Desplegando en Producción original (devops-lab)..."
+        kubectl apply -f k8s/namespace.yaml
+        sleep 5
+        kubectl apply -f k8s/db-secret.yaml
         kubectl apply -f k8s/
