@@ -47,7 +47,6 @@ jobs:
           -Dsonar.organization=stevenismael
           -Dsonar.qualitygate.wait=true
           -Dsonar.java.binaries=target/classes
-
   docker-build:
     name: Containerize & Security Scan
     needs: build-and-test
