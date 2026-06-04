@@ -6,7 +6,7 @@ metadata:
   labels:
     app: petclinic
 spec:
-  replicas: 2 # Configuración de alta disponibilidad base
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -22,11 +22,32 @@ spec:
     spec:
       containers:
       - name: petclinic
-        image: ghcr.io/Michael574a/PetClinic_Project/petclinic:tag # Reemplaza con tu ruta real de GHCR
+        # IMPORTANTE: Cambia <tu-usuario-github> por tu usuario real en minúsculas
+        image: ghcr.io/<stevenismael>/petclinic:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
         
-        # Límites de control de recursos del Pod
+        # Inyectamos las variables de entorno para la Base de Datos
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "postgres"
+        - name: POSTGRES_URL
+          valueFrom:
+            secretKeyRef:
+              name: petclinic-db-secret
+              key: POSTGRES_URL
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: petclinic-db-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASS
+          valueFrom:
+            secretKeyRef:
+              name: petclinic-db-secret
+              key: POSTGRES_PASS
+
         resources:
           requests:
             memory: "512Mi"
@@ -35,16 +56,15 @@ spec:
             memory: "1024Mi"
             cpu: "500m"
             
-        # Sondas de Ciclo de Vida conectadas con Spring Boot Actuator
         livenessProbe:
           httpGet:
             path: /actuator/health/liveness
             port: 8080
-          initialDelaySeconds: 30
+          initialDelaySeconds: 40
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /actuator/health/readiness
             port: 8080
-          initialDelaySeconds: 30
+          initialDelaySeconds: 40
           periodSeconds: 10

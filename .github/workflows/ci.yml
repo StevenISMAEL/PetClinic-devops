@@ -1,4 +1,4 @@
-name: CI/CD Pipeline - Spring PetClinic (Railway)
+name: CI/CD Pipeline - Spring PetClinic (Azure & AKS)
 
 on:
   push:
@@ -10,7 +10,6 @@ jobs:
   build-and-test:
     name: Build, Test & SAST
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
@@ -56,7 +55,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
@@ -97,16 +95,63 @@ jobs:
         tags: |
           ghcr.io/${{ env.REPO_LC }}/petclinic:latest
           ghcr.io/${{ env.REPO_LC }}/petclinic:${{ github.sha }}
-# --- PASO CD: DESPLIEGUE CONTINUO A RENDER ---
-  deploy-production:
-    name: Deploy to Render
+
+  # --- PASO IAC: APROVISIONAMIENTO EN AZURE CON TERRAFORM ---
+  terraform-deploy:
+    name: Provision Infrastructure (Terraform)
     needs: docker-build
     runs-on: ubuntu-latest
-    
+    # Solo ejecuta Terraform si estamos en la rama principal (producción)
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }} # Pasamos la contraseña segura a Terraform
+    defaults:
+      run:
+        working-directory: ./terraform
     steps:
-    - name: Trigger Render Deployment
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Format & Validate
       run: |
-        echo "Activando el despliegue en Render..."
-        curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
-        echo "Despliegue iniciado exitosamente."
-        
+        terraform fmt -check
+        terraform validate
+
+    - name: Terraform Apply
+      run: terraform apply -auto-approve
+
+  # --- PASO CD: DESPLIEGUE A KUBERNETES (AKS) ---
+  deploy-to-aks:
+    name: Deploy to Azure Kubernetes Service
+    needs: terraform-deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Set up Kubectl
+      uses: azure/setup-kubectl@v3
+
+    - name: Get AKS Credentials
+      run: az aks get-credentials --resource-group rg-petclinic-devops --name aks-petclinic
+
+    - name: Deploy to Kubernetes
+      run: |
+        # Aquí aplicaremos los manifiestos YAML actualizados
+        kubectl apply -f k8s/
