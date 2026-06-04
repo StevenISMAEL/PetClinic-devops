@@ -18,8 +18,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   default_node_pool {
     name       = "default"
-    node_count = 2                 # Suficiente para tener Alta Disponibilidad
-    vm_size    = "Standard_B2s"    # Instancia económica (Burstable)
+    node_count = 2              # Suficiente para tener Alta Disponibilidad
+    vm_size    = "Standard_B2s" # Instancia económica (Burstable)
   }
 
   identity {
@@ -38,7 +38,7 @@ resource "azurerm_postgresql_flexible_server" "postgres" {
   administrator_login    = var.db_user
   administrator_password = var.db_password
   zone                   = "1"
-  storage_mb             = 32768   # 32 GB mínimo
+  storage_mb             = 32768             # 32 GB mínimo
   sku_name               = "B_Standard_B1ms" # Tier económico
 
   tags = azurerm_resource_group.rg.tags
