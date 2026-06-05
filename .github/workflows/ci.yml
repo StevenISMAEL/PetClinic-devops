@@ -158,10 +158,43 @@ jobs:
         kubectl apply -f k8s/db-secret.yaml
         kubectl apply -f k8s/
 
+      # --- PASO DEVSECOPS: ESCANEO DINÁMICO (DAST) CON OWASP ZAP ---
+  dast-scan:
+    name: OWASP ZAP Security Scan (Staging)
+    needs: deploy-staging # Se ejecuta apenas Staging esté listo
+    runs-on: ubuntu-latest
+    steps:
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Get AKS Credentials
+      run: az aks get-credentials --resource-group rg-petclinic-devops --name aks-petclinic
+      
+    - name: Retrieve Staging IP
+      run: |
+        echo "Esperando a que Azure asigne la IP pública a Staging..."
+        STAGING_IP=""
+        # Bucle que espera hasta que el LoadBalancer nos dé una IP real
+        while [ -z "$STAGING_IP" ]; do
+          sleep 10
+          STAGING_IP=$(kubectl get svc petclinic-service -n staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        done
+        echo "IP de Staging encontrada: $STAGING_IP"
+        echo "TARGET_URL=http://$STAGING_IP" >> $GITHUB_ENV
+
+    - name: Run OWASP ZAP Baseline Scan
+      uses: zaproxy/action-baseline@v0.12.0
+      with:
+        target: ${{ env.TARGET_URL }}
+        fail_action: false # Importante: No rompe el pipeline si hay advertencias menores
+
+
   # --- PASO CD: DESPLIEGUE A PRODUCCIÓN (REQUIERE APROBACIÓN) ---
   deploy-production:
     name: Deploy to Production Environment
-    needs: deploy-staging # IMPORTANTE: Solo se ejecuta si Staging fue exitoso
+    needs: dast-scan
     runs-on: ubuntu-latest
     environment: production # ESTO ACTIVA LA PAUSA DE APROBACIÓN MANUAL EN GITHUB
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
