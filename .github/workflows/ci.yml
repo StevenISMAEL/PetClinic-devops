@@ -163,6 +163,8 @@ jobs:
     name: OWASP ZAP Security Scan (Staging)
     needs: deploy-staging # Se ejecuta apenas Staging esté listo
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
     - name: Azure Login
       uses: azure/login@v1
@@ -217,4 +219,3 @@ jobs:
         sleep 5
         kubectl apply -f k8s/db-secret.yaml
         kubectl apply -f k8s/
-        
