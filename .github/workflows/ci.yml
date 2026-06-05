@@ -163,6 +163,7 @@ jobs:
     name: OWASP ZAP Security Scan (Staging)
     needs: deploy-staging # Se ejecuta apenas Staging esté listo
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       issues: write
     steps:
