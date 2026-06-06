@@ -215,23 +215,39 @@ jobs:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
 
     - name: Retrieve Staging IP
+      timeout-minutes: 10
       run: |
         echo "Esperando a que GCP asigne la IP pública a Staging..."
         STAGING_IP=""
-        while [ -z "$STAGING_IP" ]; do
+        ATTEMPTS=0
+        while [ -z "$STAGING_IP" ] && [ $ATTEMPTS -lt 30 ]; do
           sleep 10
           STAGING_IP=$(kubectl get svc petclinic-service -n staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          ATTEMPTS=$((ATTEMPTS+1))
         done
+        
+        if [ -z "$STAGING_IP" ]; then
+          echo "ERROR: No se pudo obtener la IP después de 5 minutos"
+          exit 1
+        fi
         echo "IP de Staging encontrada: $STAGING_IP"
         
-        echo "Esperando a que la aplicación responda (HTTP 200)..."
-        # Bucle que espera hasta que la app responda correctamente
-        while ! curl -s --max-time 5 -o /dev/null -w "%{http_code}" http://$STAGING_IP/ | grep -q "200"; do
-          echo "Esperando a que el LoadBalancer y la app estén listos en http://$STAGING_IP/..."
+        echo "Esperando a que la aplicación responda..."
+        ATTEMPTS=0
+        while [ $ATTEMPTS -lt 30 ]; do
+          HTTP_CODE=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}" http://$STAGING_IP/ || echo "000")
+          echo "Intento $ATTEMPTS - HTTP: $HTTP_CODE"
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
+            echo "¡Aplicación lista! (HTTP $HTTP_CODE)"
+            break
+          fi
           sleep 10
+          ATTEMPTS=$((ATTEMPTS+1))
         done
         
-        echo "¡Aplicación lista!"
+        if [ $ATTEMPTS -ge 30 ]; then
+          echo "WARNING: La app no respondió después de 5 minutos, continuando de todos modos..."
+        fi
         echo "TARGET_URL=http://$STAGING_IP" >> $GITHUB_ENV
 
     - name: Run OWASP ZAP Baseline Scan

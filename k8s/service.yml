@@ -4,7 +4,7 @@ metadata:
   name: petclinic-service
   namespace: devops-lab
 spec:
-  type: LoadBalancer # Esto le pedirá a Azure una IP Pública
+  type: LoadBalancer # Esto le pedirá a GCP una IP Pública
   selector:
     app: petclinic
   ports:
