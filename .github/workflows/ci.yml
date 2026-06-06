@@ -177,18 +177,7 @@ jobs:
         kubectl apply -f k8s/db-secret.yaml
         kubectl apply -f k8s/
 
-    - name: Deploy Observability Stack
-      run: |
-        kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo add grafana https://grafana.github.io/helm-charts
-        helm repo update
-        helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
-          --namespace observability \
-          --create-namespace
-        helm upgrade --install grafana grafana/grafana \
-          --namespace observability \
-          --create-namespace
+
 
       # --- PASO DEVSECOPS: ESCANEO DINÁMICO (DAST) CON OWASP ZAP ---
   dast-scan:
