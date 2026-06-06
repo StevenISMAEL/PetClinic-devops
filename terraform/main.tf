@@ -19,6 +19,19 @@ resource "google_container_cluster" "gke" {
   initial_node_count       = 1
   deletion_protection      = false
 
+  # Desactivar Google Managed Prometheus para liberar CPU
+  # Usamos nuestro propio Prometheus + Grafana
+  monitoring_config {
+    enable_components = []
+    managed_prometheus {
+      enabled = false
+    }
+  }
+
+  logging_config {
+    enable_components = []
+  }
+
   depends_on = [google_project_service.container]
 }
 
