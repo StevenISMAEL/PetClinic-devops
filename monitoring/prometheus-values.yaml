@@ -1,19 +1,37 @@
 # =============================================================================
-# kube-prometheus-stack - Configuración ligera para cluster de 2 nodos
+# kube-prometheus-stack - Configuración ULTRA-LIGERA para cluster 2 nodos
 # =============================================================================
 
-# --- Grafana (incluido en kube-prometheus-stack) ---
+# --- Grafana ---
 grafana:
   enabled: true
   adminPassword: "PetClinic2026!"
   resources:
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: 25m
+      memory: 64Mi
     limits:
-      cpu: 200m
+      cpu: 150m
       memory: 256Mi
-  # Dashboard SLO de PetClinic (se carga automáticamente)
+  # Desactivar sidecars pesados
+  sidecar:
+    dashboards:
+      enabled: true
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 50m
+          memory: 64Mi
+    datasources:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 50m
+          memory: 64Mi
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1
@@ -32,15 +50,14 @@ grafana:
 # --- Prometheus Server ---
 prometheus:
   prometheusSpec:
-    retention: 24h       # Solo 24h de retención (ahorramos disco)
+    retention: 12h
     resources:
       requests:
-        cpu: 100m
-        memory: 256Mi
+        cpu: 50m
+        memory: 200Mi
       limits:
-        cpu: 500m
-        memory: 512Mi
-    # Scrape de métricas de PetClinic via ServiceMonitor
+        cpu: 300m
+        memory: 400Mi
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
@@ -54,35 +71,45 @@ alertmanager:
         cpu: 10m
         memory: 32Mi
       limits:
-        cpu: 100m
+        cpu: 50m
         memory: 64Mi
 
-# --- Node Exporter (ligero) ---
+# --- Node Exporter ---
 nodeExporter:
   resources:
     requests:
       cpu: 10m
-      memory: 32Mi
+      memory: 16Mi
     limits:
-      cpu: 100m
-      memory: 64Mi
+      cpu: 50m
+      memory: 32Mi
 
 # --- Kube State Metrics ---
 kube-state-metrics:
   resources:
     requests:
       cpu: 10m
-      memory: 32Mi
+      memory: 16Mi
     limits:
-      cpu: 100m
-      memory: 64Mi
+      cpu: 50m
+      memory: 32Mi
 
 # --- Prometheus Operator ---
 prometheusOperator:
   resources:
     requests:
-      cpu: 50m
-      memory: 64Mi
+      cpu: 25m
+      memory: 32Mi
     limits:
-      cpu: 200m
+      cpu: 100m
       memory: 128Mi
+  # Reducir webhook para ahorrar recursos
+  admissionWebhooks:
+    patch:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi
