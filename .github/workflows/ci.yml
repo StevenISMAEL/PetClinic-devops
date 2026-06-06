@@ -185,15 +185,10 @@ jobs:
         helm repo update
         helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
           --namespace observability \
-          --create-namespace \
-          --values monitoring/prometheus-values.yaml
+          --create-namespace
         helm upgrade --install grafana grafana/grafana \
           --namespace observability \
-          --create-namespace \
-          --values monitoring/grafana-values.yaml
-
-        kubectl apply -f monitoring/alert-rules.yaml
-        kubectl apply -f monitoring/prometheus-service-monitor.yaml
+          --create-namespace
 
       # --- PASO DEVSECOPS: ESCANEO DINÁMICO (DAST) CON OWASP ZAP ---
   dast-scan:
