@@ -223,6 +223,15 @@ jobs:
           STAGING_IP=$(kubectl get svc petclinic-service -n staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
         done
         echo "IP de Staging encontrada: $STAGING_IP"
+        
+        echo "Esperando a que la aplicación responda (HTTP 200)..."
+        # Bucle que espera hasta que la app responda correctamente
+        while ! curl -s --max-time 5 -o /dev/null -w "%{http_code}" http://$STAGING_IP/ | grep -q "200"; do
+          echo "Esperando a que el LoadBalancer y la app estén listos en http://$STAGING_IP/..."
+          sleep 10
+        done
+        
+        echo "¡Aplicación lista!"
         echo "TARGET_URL=http://$STAGING_IP" >> $GITHUB_ENV
 
     - name: Run OWASP ZAP Baseline Scan
