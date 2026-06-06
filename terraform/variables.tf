@@ -1,7 +1,7 @@
 variable "location" {
   description = "Región de Azure donde se desplegarán los recursos"
   type        = string
-  default     = "eastus2"
+  default     = "eastus"
 }
 
 variable "resource_group_name" {
@@ -19,7 +19,7 @@ variable "aks_name" {
 variable "db_name" {
   description = "Nombre del servidor de PostgreSQL"
   type        = string
-  default     = "pg-petclinic-server-silarac" # Debe ser un nombre globalmente único
+  default     = "pg-petclinic-silarac-2026"
 }
 
 variable "db_user" {
