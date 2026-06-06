@@ -1,25 +1,31 @@
-variable "location" {
-  description = "Región de Azure donde se desplegarán los recursos"
+variable "project_id" {
+  description = "ID del proyecto en Google Cloud"
   type        = string
-  default     = "eastus"
+  default     = "petclinic-devops"
 }
 
-variable "resource_group_name" {
-  description = "Nombre del Grupo de Recursos"
+variable "region" {
+  description = "Región de GCP donde se desplegarán los recursos"
   type        = string
-  default     = "rg-petclinic-devops"
+  default     = "us-central1"
 }
 
-variable "aks_name" {
-  description = "Nombre del clúster de Kubernetes"
+variable "zone" {
+  description = "Zona de GCP para el clúster GKE"
   type        = string
-  default     = "aks-petclinic"
+  default     = "us-central1-a"
+}
+
+variable "gke_name" {
+  description = "Nombre del clúster de GKE"
+  type        = string
+  default     = "gke-petclinic"
 }
 
 variable "db_name" {
-  description = "Nombre del servidor de PostgreSQL"
+  description = "Nombre de la instancia de Cloud SQL"
   type        = string
-  default     = "pg-petclinic-silarac-2026"
+  default     = "petclinic-postgres"
 }
 
 variable "db_user" {

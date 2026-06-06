@@ -1,70 +1,94 @@
-# 1. Grupo de Recursos
-resource "azurerm_resource_group" "rg" {
-  name     = var.resource_group_name
-  location = var.location
-  tags = {
-    Environment = "Production"
-    Project     = "DevOps PetClinic"
+# 1. Habilitar APIs necesarias de GCP
+resource "google_project_service" "container" {
+  service            = "container.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "sqladmin" {
+  service            = "sqladmin.googleapis.com"
+  disable_on_destroy = false
+}
+
+# 2. Google Kubernetes Engine (GKE)
+resource "google_container_cluster" "gke" {
+  name     = var.gke_name
+  location = var.zone
+
+  # Eliminamos el node pool por defecto para crear uno personalizado
+  remove_default_node_pool = true
+  initial_node_count       = 1
+  deletion_protection      = false
+
+  depends_on = [google_project_service.container]
+}
+
+resource "google_container_node_pool" "primary" {
+  name       = "default-pool"
+  location   = var.zone
+  cluster    = google_container_cluster.gke.name
+  node_count = 2
+
+  node_config {
+    machine_type = "e2-medium" # 2 vCPU, 4GB RAM (equivalente a Standard_B2s de Azure)
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+
+    labels = {
+      Environment = "Production"
+      Project     = "DevOps-PetClinic"
+    }
   }
 }
 
-# 2. Azure Kubernetes Service (AKS)
-resource "azurerm_kubernetes_cluster" "aks" {
-  name                = var.aks_name
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  dns_prefix          = "petclinic-aks"
+# 3. Cloud SQL for PostgreSQL
+resource "google_sql_database_instance" "postgres" {
+  name                = var.db_name
+  database_version    = "POSTGRES_14"
+  region              = var.region
+  deletion_protection = false
 
-  default_node_pool {
-    name       = "default"
-    node_count = 2
-    vm_size    = "Standard_B2s"
+  settings {
+    tier = "db-f1-micro" # Tier económico para desarrollo
+
+    ip_configuration {
+      ipv4_enabled = true
+      authorized_networks {
+        name  = "allow-all"
+        value = "0.0.0.0/0"
+      }
+    }
+
+    disk_size = 10
+    disk_type = "PD_HDD"
   }
 
-  identity {
-    type = "SystemAssigned"
-  }
-
-  tags = azurerm_resource_group.rg.tags
+  depends_on = [google_project_service.sqladmin]
 }
 
-# 3. Azure Database for PostgreSQL
-resource "azurerm_postgresql_flexible_server" "postgres" {
-  name                   = var.db_name
-  resource_group_name    = azurerm_resource_group.rg.name
-  location               = azurerm_resource_group.rg.location
-  version                = "14"
-  administrator_login    = var.db_user
-  administrator_password = var.db_password
-  storage_mb             = 32768
-  sku_name               = "B_Standard_B1ms"
-  tags                   = azurerm_resource_group.rg.tags
+resource "google_sql_database" "db" {
+  name     = "petclinic"
+  instance = google_sql_database_instance.postgres.name
 }
 
-resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_aks" {
-  name             = "AllowAzureServices"
-  server_id        = azurerm_postgresql_flexible_server.postgres.id
-  start_ip_address = "0.0.0.0"
-  end_ip_address   = "0.0.0.0"
+resource "google_sql_user" "admin" {
+  name     = var.db_user
+  instance = google_sql_database_instance.postgres.name
+  password = var.db_password
 }
 
-resource "azurerm_postgresql_flexible_server_database" "db" {
-  name      = "petclinic"
-  server_id = azurerm_postgresql_flexible_server.postgres.id
-  charset   = "UTF8"
-  collation = "en_US.utf8"
-}
-
+# 4. Permisos para colaboradores del proyecto
 # Permiso para sepazminot@utn.edu.ec
-resource "azurerm_role_assignment" "colaborador_1" {
-  scope                = azurerm_resource_group.rg.id
-  role_definition_name = "Contributor"
-  principal_id         = "6fb366ed-2659-4438-b932-65d9880ed3e5"
+resource "google_project_iam_member" "colaborador_1" {
+  project = var.project_id
+  role    = "roles/editor"
+  member  = "user:sepazminot@utn.edu.ec"
 }
 
 # Permiso para miserranob@utn.edu.ec
-resource "azurerm_role_assignment" "colaborador_2" {
-  scope                = azurerm_resource_group.rg.id
-  role_definition_name = "Contributor"
-  principal_id         = "deb10895-88bc-4804-b34c-642217fba203"
+resource "google_project_iam_member" "colaborador_2" {
+  project = var.project_id
+  role    = "roles/editor"
+  member  = "user:miserranob@utn.edu.ec"
 }

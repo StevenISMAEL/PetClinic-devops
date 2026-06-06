@@ -1,12 +1,15 @@
-output "resource_group_name" {
-  value = azurerm_resource_group.rg.name
+output "gke_cluster_name" {
+  value       = google_container_cluster.gke.name
+  description = "Nombre del clúster GKE"
 }
 
-output "kubernetes_cluster_name" {
-  value = azurerm_kubernetes_cluster.aks.name
+output "gke_cluster_endpoint" {
+  value       = google_container_cluster.gke.endpoint
+  description = "Endpoint del clúster GKE"
+  sensitive   = true
 }
 
-output "postgres_server_fqdn" {
-  value       = azurerm_postgresql_flexible_server.postgres.fqdn
-  description = "Endpoint de conexión para la base de datos PostgreSQL"
+output "postgres_connection_ip" {
+  value       = google_sql_database_instance.postgres.public_ip_address
+  description = "IP pública de la instancia Cloud SQL para conexión"
 }
