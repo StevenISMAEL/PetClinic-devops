@@ -1,0 +1,88 @@
+# =============================================================================
+# kube-prometheus-stack - Configuración ligera para cluster de 2 nodos
+# =============================================================================
+
+# --- Grafana (incluido en kube-prometheus-stack) ---
+grafana:
+  enabled: true
+  adminPassword: "PetClinic2026!"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  # Dashboard SLO de PetClinic (se carga automáticamente)
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'custom'
+          orgId: 1
+          folder: 'PetClinic'
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/custom
+  dashboardsConfigMaps:
+    custom: "petclinic-slo-dashboard"
+
+# --- Prometheus Server ---
+prometheus:
+  prometheusSpec:
+    retention: 24h       # Solo 24h de retención (ahorramos disco)
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    # Scrape de métricas de PetClinic via ServiceMonitor
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+# --- Alertmanager ---
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
+
+# --- Node Exporter (ligero) ---
+nodeExporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# --- Kube State Metrics ---
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# --- Prometheus Operator ---
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi

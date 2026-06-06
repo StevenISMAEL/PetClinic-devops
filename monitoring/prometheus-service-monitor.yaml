@@ -1,0 +1,23 @@
+# =============================================================================
+# ServiceMonitor - Scrape de métricas de Spring Boot Actuator
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: petclinic-monitor
+  namespace: observability
+  labels:
+    app: petclinic
+spec:
+  namespaceSelector:
+    matchNames:
+      - staging
+      - devops-lab
+  selector:
+    matchLabels:
+      app: petclinic
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
+      scrapeTimeout: 10s

@@ -1,0 +1,108 @@
+# =============================================================================
+# PrometheusRule - Alertas y SLOs para PetClinic
+# SLI/SLO: 99.9% de disponibilidad (error budget: 0.1%)
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: petclinic-alerts
+  namespace: observability
+  labels:
+    app: petclinic
+    release: prometheus
+spec:
+  groups:
+    # =========================================================================
+    # GRUPO 1: SLO - Disponibilidad 99.9%
+    # =========================================================================
+    - name: petclinic-slo
+      rules:
+        # SLI: Tasa de éxito de requests HTTP (código < 500)
+        - record: petclinic:http_request_success_rate:5m
+          expr: |
+            1 - (
+              sum(rate(http_server_requests_seconds_count{namespace=~"staging|devops-lab", status=~"5.."}[5m]))
+              /
+              sum(rate(http_server_requests_seconds_count{namespace=~"staging|devops-lab"}[5m]))
+            )
+
+        # SLI: Latencia P99 de requests HTTP
+        - record: petclinic:http_request_latency_p99:5m
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(http_server_requests_seconds_bucket{namespace=~"staging|devops-lab"}[5m])) by (le)
+            )
+
+        # ALERTA: SLO de disponibilidad violado (< 99.9%)
+        - alert: PetClinicSLOAvailabilityBreach
+          expr: petclinic:http_request_success_rate:5m < 0.999
+          for: 5m
+          labels:
+            severity: critical
+            team: devops
+          annotations:
+            summary: "SLO de disponibilidad violado (< 99.9%)"
+            description: |
+              La tasa de éxito de PetClinic ha caído a {{ $value | humanizePercentage }}.
+              El SLO definido es 99.9%. Error budget consumido.
+
+        # ALERTA: Latencia P99 alta (> 2 segundos)
+        - alert: PetClinicHighLatencyP99
+          expr: petclinic:http_request_latency_p99:5m > 2
+          for: 5m
+          labels:
+            severity: warning
+            team: devops
+          annotations:
+            summary: "Latencia P99 elevada (> 2s)"
+            description: |
+              La latencia P99 es {{ $value | humanizeDuration }}.
+              Esto impacta la experiencia del usuario.
+
+    # =========================================================================
+    # GRUPO 2: Alertas de Infraestructura
+    # =========================================================================
+    - name: petclinic-infrastructure
+      rules:
+        # ALERTA: Pod crasheando repetidamente
+        - alert: PetClinicPodCrashLooping
+          expr: |
+            rate(kube_pod_container_status_restarts_total{namespace=~"staging|devops-lab", pod=~"petclinic.*"}[15m]) > 0
+          for: 5m
+          labels:
+            severity: critical
+            team: devops
+          annotations:
+            summary: "Pod de PetClinic reiniciándose constantemente"
+            description: |
+              El pod {{ $labels.pod }} en el namespace {{ $labels.namespace }}
+              se ha reiniciado en los últimos 15 minutos.
+
+        # ALERTA: Pod no está Ready
+        - alert: PetClinicPodNotReady
+          expr: |
+            kube_pod_status_ready{namespace=~"staging|devops-lab", pod=~"petclinic.*", condition="true"} == 0
+          for: 10m
+          labels:
+            severity: warning
+            team: devops
+          annotations:
+            summary: "Pod de PetClinic no está listo"
+            description: |
+              El pod {{ $labels.pod }} en {{ $labels.namespace }}
+              lleva más de 10 minutos sin estar Ready.
+
+        # ALERTA: Uso alto de memoria JVM
+        - alert: PetClinicHighMemoryUsage
+          expr: |
+            jvm_memory_used_bytes{namespace=~"staging|devops-lab", area="heap"}
+            / jvm_memory_max_bytes{namespace=~"staging|devops-lab", area="heap"} > 0.9
+          for: 5m
+          labels:
+            severity: warning
+            team: devops
+          annotations:
+            summary: "Uso de memoria heap JVM > 90%"
+            description: |
+              La JVM de PetClinic está usando {{ $value | humanizePercentage }}
+              del heap máximo.
