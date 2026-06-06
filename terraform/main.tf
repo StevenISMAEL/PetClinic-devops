@@ -26,13 +26,10 @@ resource "google_container_node_pool" "primary" {
   name       = "default-pool"
   location   = var.zone
   cluster    = google_container_cluster.gke.name
-  node_count = 3
+  node_count = 2
 
   node_config {
-    # 2 vCPU, 4GB RAM | Disco 50GB HDD estándar (para no gastar cuota SSD)
     machine_type = "e2-medium"
-    disk_size_gb = 50
-    disk_type    = "pd-standard"
 
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
