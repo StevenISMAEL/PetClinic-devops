@@ -29,9 +29,10 @@ resource "google_container_node_pool" "primary" {
   node_count = 3
 
   node_config {
-    machine_type = "e2-medium" # 2 vCPU, 4GB RAM
-    disk_size_gb = 50          # Reducimos el disco a 50GB por nodo
-    disk_type    = "pd-standard" # Usamos HDD estándar para no gastar cuota SSD
+    # 2 vCPU, 4GB RAM | Disco 50GB HDD estándar (para no gastar cuota SSD)
+    machine_type = "e2-medium"
+    disk_size_gb = 50
+    disk_type    = "pd-standard"
 
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
