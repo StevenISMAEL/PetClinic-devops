@@ -77,18 +77,3 @@ resource "google_sql_user" "admin" {
   instance = google_sql_database_instance.postgres.name
   password = var.db_password
 }
-
-# 4. Permisos para colaboradores del proyecto
-# Permiso para sepazminot@utn.edu.ec
-resource "google_project_iam_member" "colaborador_1" {
-  project = var.project_id
-  role    = "roles/editor"
-  member  = "user:sepazminot@utn.edu.ec"
-}
-
-# Permiso para miserranob@utn.edu.ec
-resource "google_project_iam_member" "colaborador_2" {
-  project = var.project_id
-  role    = "roles/editor"
-  member  = "user:miserranob@utn.edu.ec"
-}
