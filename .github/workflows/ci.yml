@@ -255,7 +255,6 @@ jobs:
       with:
         target: ${{ env.TARGET_URL }}
         fail_action: false
-
   # --- PASO CD: DESPLIEGUE A PRODUCCIÓN (REQUIERE APROBACIÓN) ---
   deploy-production:
     name: Deploy to Production Environment
