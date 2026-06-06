@@ -10,7 +10,7 @@ terraform {
   # Backend remoto en Google Cloud Storage
   # Nota: Debes crear este bucket a mano en GCP primero
   backend "gcs" {
-    bucket = "tf-state-petclinic-devops"
+    bucket = "tf-state-petclinic-silarac"
     prefix = "terraform/state"
   }
 }
