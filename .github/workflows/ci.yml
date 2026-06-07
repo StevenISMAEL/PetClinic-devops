@@ -181,16 +181,16 @@ jobs:
       continue-on-error: true
       run: |
         kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
+        kubectl apply -f monitoring/grafana-slo-dashboard.yaml
+        kubectl apply -f monitoring/alert-rules.yaml
+        kubectl apply -f monitoring/prometheus-service-monitor.yaml
         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
         helm repo update
         helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
           --namespace observability \
           --create-namespace \
           --values monitoring/prometheus-values.yaml \
-          --wait --timeout 5m
-        kubectl apply -f monitoring/grafana-slo-dashboard.yaml
-        kubectl apply -f monitoring/alert-rules.yaml
-        kubectl apply -f monitoring/prometheus-service-monitor.yaml
+          --timeout 8m
 
       # --- PASO DEVSECOPS: ESCANEO DINÁMICO (DAST) CON OWASP ZAP ---
   dast-scan:
