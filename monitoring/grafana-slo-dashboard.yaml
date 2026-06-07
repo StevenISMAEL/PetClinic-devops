@@ -1,5 +1,6 @@
 # =============================================================================
 # ConfigMap - Dashboard de SLO de PetClinic para Grafana
+# Se carga automáticamente vía sidecar de Grafana (label grafana_dashboard: "1")
 # =============================================================================
 apiVersion: v1
 kind: ConfigMap
@@ -12,19 +13,30 @@ data:
   petclinic-slo.json: |
     {
       "annotations": { "list": [] },
+      "description": "Dashboard de SLOs para PetClinic — Disponibilidad 99.9%, Error Rate, Latencia, Pods Health",
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 1,
       "links": [],
       "panels": [
         {
-          "title": "🎯 SLO: Disponibilidad (Target: 99.9%)",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "id": 100,
+          "title": "🎯 SLO Overview",
+          "type": "row"
+        },
+        {
+          "id": 1,
+          "title": "🎯 Availability SLO (Target: 99.9%)",
+          "description": "SLI: Tasa de éxito de requests HTTP (respuestas sin error 5xx). SLO: 99.9%.",
           "type": "gauge",
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 1 },
           "targets": [
             {
-              "expr": "1 - (sum(rate(http_server_requests_seconds_count{namespace=~\"staging|devops-lab\", status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{namespace=~\"staging|devops-lab\"}[5m])))",
-              "legendFormat": "Disponibilidad"
+              "expr": "clamp_min(\n  1 - (\n    sum(rate(http_server_requests_seconds_count{namespace=~\"staging|devops-lab\", status=~\"5..\"}[5m]))\n    /\n    clamp_min(sum(rate(http_server_requests_seconds_count{namespace=~\"staging|devops-lab\"}[5m])), 1e-10)\n  ),\n  0\n)",
+              "legendFormat": "Disponibilidad",
+              "refId": "A"
             }
           ],
           "fieldConfig": {
@@ -32,73 +44,128 @@ data:
               "unit": "percentunit",
               "min": 0.99,
               "max": 1,
+              "decimals": 3,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   { "color": "red", "value": null },
-                  { "color": "orange", "value": 0.995 },
+                  { "color": "#EAB839", "value": 0.995 },
                   { "color": "green", "value": 0.999 }
                 ]
-              }
-            }
+              },
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "nan",
+                    "result": { "text": "100%", "color": "green" }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
           }
         },
         {
-          "title": "⏱️ Latencia P99 (Target: < 2s)",
+          "id": 2,
+          "title": "⏱️ Latency P99 (Target: < 2s)",
+          "description": "Percentil 99 de latencia. Objetivo: menor a 2 segundos.",
           "type": "gauge",
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 },
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 1 },
           "targets": [
             {
-              "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{namespace=~\"staging|devops-lab\"}[5m])) by (le))",
-              "legendFormat": "P99 Latency"
+              "expr": "histogram_quantile(0.99,\n  sum(rate(http_server_requests_seconds_bucket{namespace=~\"staging|devops-lab\"}[5m])) by (le)\n)",
+              "legendFormat": "P99 Latency",
+              "refId": "A"
             }
           ],
           "fieldConfig": {
             "defaults": {
               "unit": "s",
+              "decimals": 2,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   { "color": "green", "value": null },
-                  { "color": "orange", "value": 1 },
+                  { "color": "#EAB839", "value": 1 },
                   { "color": "red", "value": 2 }
                 ]
               }
-            }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
           }
         },
         {
-          "title": "📊 Error Budget Restante (30 días)",
+          "id": 3,
+          "title": "📊 Error Budget Remaining (30d)",
+          "description": "Error budget restante. SLO 99.9% → budget total: 0.1%.",
           "type": "stat",
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
           "targets": [
             {
-              "expr": "1 - ((1 - (1 - sum(rate(http_server_requests_seconds_count{namespace=~\"staging|devops-lab\", status=~\"5..\"}[30d])) / sum(rate(http_server_requests_seconds_count{namespace=~\"staging|devops-lab\"}[30d])))) / 0.001)",
-              "legendFormat": "Error Budget"
+              "expr": "clamp_min(\n  1 - (\n    (1 - (\n      1 - sum(rate(http_server_requests_seconds_count{namespace=~\"staging|devops-lab\", status=~\"5..\"}[30d]))\n      / clamp_min(sum(rate(http_server_requests_seconds_count{namespace=~\"staging|devops-lab\"}[30d])), 1e-10)\n    )) / 0.001\n  ),\n  0\n)",
+              "legendFormat": "Error Budget",
+              "refId": "A"
             }
           ],
           "fieldConfig": {
             "defaults": {
               "unit": "percentunit",
+              "decimals": 1,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   { "color": "red", "value": null },
-                  { "color": "orange", "value": 0.25 },
+                  { "color": "#EAB839", "value": 0.25 },
                   { "color": "green", "value": 0.5 }
                 ]
-              }
-            }
+              },
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "nan",
+                    "result": { "text": "100%", "color": "green" }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "textMode": "auto"
           }
         },
         {
-          "title": "🏥 Estado de Pods PetClinic",
+          "id": 4,
+          "title": "🏥 Pods Health (Ready / Total)",
+          "description": "Pods de PetClinic en estado Ready vs total.",
           "type": "stat",
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
           "targets": [
             {
-              "expr": "sum(kube_pod_status_ready{namespace=~\"staging|devops-lab\", pod=~\"petclinic.*\", condition=\"true\"})",
-              "legendFormat": "Pods Ready"
+              "expr": "sum(kube_pod_status_ready{namespace=~\"staging|devops-lab\", pod=~\"petclinic.*\", condition=\"true\"}) or vector(0)",
+              "legendFormat": "Pods Ready",
+              "refId": "A"
+            },
+            {
+              "expr": "count(kube_pod_info{namespace=~\"staging|devops-lab\", pod=~\"petclinic.*\"}) or vector(0)",
+              "legendFormat": "Pods Total",
+              "refId": "B"
             }
           ],
           "fieldConfig": {
@@ -110,79 +177,342 @@ data:
                   { "color": "green", "value": 1 }
                 ]
               }
-            }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "textMode": "auto"
           }
         },
         {
-          "title": "📈 Tasa de Requests por Segundo",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+          "id": 101,
+          "title": "📈 Request & Error Rates",
+          "type": "row"
+        },
+        {
+          "id": 5,
+          "title": "📈 Request Rate (req/s)",
+          "description": "Requests por segundo, desglosados por código de estado HTTP.",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
           "targets": [
             {
               "expr": "sum(rate(http_server_requests_seconds_count{namespace=~\"staging|devops-lab\"}[1m])) by (status)",
-              "legendFormat": "HTTP {{status}}"
+              "legendFormat": "HTTP {{ status }}",
+              "refId": "A"
             }
           ],
           "fieldConfig": {
-            "defaults": { "unit": "reqps" }
+            "defaults": {
+              "unit": "reqps",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 15,
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "auto",
+                "spanNulls": true,
+                "stacking": { "mode": "none" }
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": "5.." },
+                "properties": [
+                  { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+            "tooltip": { "mode": "multi", "sort": "desc" }
           }
         },
         {
-          "title": "📈 Latencia por Endpoint (P50, P95, P99)",
+          "id": 6,
+          "title": "🔴 Error Rate (%)",
+          "description": "Porcentaje de respuestas HTTP 5xx. Umbral de alerta: 5%.",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+          "targets": [
+            {
+              "expr": "100 * (\n  sum(rate(http_server_requests_seconds_count{namespace=~\"staging|devops-lab\", status=~\"5..\"}[5m]))\n  /\n  clamp_min(sum(rate(http_server_requests_seconds_count{namespace=~\"staging|devops-lab\"}[5m])), 1e-10)\n)",
+              "legendFormat": "Error Rate %",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "decimals": 2,
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 20,
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "auto",
+                "spanNulls": true,
+                "thresholdsStyle": { "mode": "line+area" }
+              },
+              "color": { "mode": "fixed", "fixedColor": "red" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "transparent", "value": null },
+                  { "color": "red", "value": 5 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "last"] },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          }
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+          "id": 102,
+          "title": "⏱️ Latency Detail",
+          "type": "row"
+        },
+        {
+          "id": 7,
+          "title": "⏱️ Latency Percentiles (P50 / P95 / P99)",
+          "description": "Distribución de latencia: P50 (mediana), P95 y P99.",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
           "targets": [
             {
               "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{namespace=~\"staging|devops-lab\"}[5m])) by (le))",
-              "legendFormat": "P50"
+              "legendFormat": "P50 (Median)",
+              "refId": "A"
             },
             {
               "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=~\"staging|devops-lab\"}[5m])) by (le))",
-              "legendFormat": "P95"
+              "legendFormat": "P95",
+              "refId": "B"
             },
             {
               "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{namespace=~\"staging|devops-lab\"}[5m])) by (le))",
-              "legendFormat": "P99"
+              "legendFormat": "P99",
+              "refId": "C"
             }
           ],
           "fieldConfig": {
-            "defaults": { "unit": "s" }
+            "defaults": {
+              "unit": "s",
+              "decimals": 3,
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "auto",
+                "spanNulls": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "P99" },
+                "properties": [
+                  { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "P95" },
+                "properties": [
+                  { "id": "color", "value": { "fixedColor": "#EAB839", "mode": "fixed" } }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "P50 (Median)" },
+                "properties": [
+                  { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "last"] },
+            "tooltip": { "mode": "multi", "sort": "desc" }
           }
         },
         {
-          "title": "🧠 Uso de Memoria JVM (Heap)",
+          "id": 8,
+          "title": "📊 Latency P95 by Endpoint",
+          "description": "Latencia P95 desglosada por endpoint/URI.",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95,\n  sum(rate(http_server_requests_seconds_bucket{namespace=~\"staging|devops-lab\"}[5m])) by (le, uri)\n)",
+              "legendFormat": "{{ uri }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 3,
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 5,
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "auto",
+                "spanNulls": true
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          }
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+          "id": 103,
+          "title": "🖥️ Infrastructure Health",
+          "type": "row"
+        },
+        {
+          "id": 9,
+          "title": "🧠 JVM Heap Memory Usage",
+          "description": "Uso de memoria heap de la JVM: usado vs máximo.",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 28 },
           "targets": [
             {
               "expr": "jvm_memory_used_bytes{namespace=~\"staging|devops-lab\", area=\"heap\"}",
-              "legendFormat": "Usado"
+              "legendFormat": "Used ({{ pod }})",
+              "refId": "A"
             },
             {
               "expr": "jvm_memory_max_bytes{namespace=~\"staging|devops-lab\", area=\"heap\"}",
-              "legendFormat": "Máximo"
+              "legendFormat": "Max ({{ pod }})",
+              "refId": "B"
             }
           ],
           "fieldConfig": {
-            "defaults": { "unit": "bytes" }
+            "defaults": {
+              "unit": "bytes",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 15,
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "auto",
+                "spanNulls": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": "Max.*" },
+                "properties": [
+                  { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+                  { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+            "tooltip": { "mode": "multi", "sort": "desc" }
           }
         },
         {
-          "title": "🔄 Reinicios de Pods",
+          "id": 10,
+          "title": "🔄 Pod Restarts",
+          "description": "Contador acumulativo de reinicios de pods de PetClinic.",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 28 },
           "targets": [
             {
               "expr": "kube_pod_container_status_restarts_total{namespace=~\"staging|devops-lab\", pod=~\"petclinic.*\"}",
-              "legendFormat": "{{ pod }}"
+              "legendFormat": "{{ pod }}",
+              "refId": "A"
             }
-          ]
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "stepAfter",
+                "fillOpacity": 20,
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "auto",
+                "spanNulls": true
+              },
+              "color": { "mode": "palette-classic" }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          }
+        },
+        {
+          "id": 11,
+          "title": "💻 CPU Usage per Pod",
+          "description": "Uso de CPU por pod de PetClinic, medido en cores.",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 28 },
+          "targets": [
+            {
+              "expr": "rate(container_cpu_usage_seconds_total{namespace=~\"staging|devops-lab\", pod=~\"petclinic.*\", container!=\"POD\", container!=\"\"}[5m])",
+              "legendFormat": "{{ pod }} ({{ container }})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 3,
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 15,
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "auto",
+                "spanNulls": true
+              },
+              "color": { "mode": "palette-classic" }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          }
         }
       ],
+      "refresh": "30s",
       "schemaVersion": 39,
-      "tags": ["petclinic", "slo", "devops"],
+      "tags": ["petclinic", "slo", "devops", "observability"],
       "templating": { "list": [] },
       "time": { "from": "now-1h", "to": "now" },
-      "title": "PetClinic - SLO Dashboard",
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "PetClinic SLO Dashboard",
       "uid": "petclinic-slo"
     }

@@ -59,6 +59,24 @@ spec:
               La latencia P99 es {{ $value | humanizeDuration }}.
               Esto impacta la experiencia del usuario.
 
+        # ALERTA: Error Rate HTTP 5xx > 5%
+        - alert: PetClinicHighErrorRate
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{namespace=~"staging|devops-lab", status=~"5.."}[5m]))
+              /
+              sum(rate(http_server_requests_seconds_count{namespace=~"staging|devops-lab"}[5m]))
+            ) > 0.05
+          for: 2m
+          labels:
+            severity: critical
+            team: devops
+          annotations:
+            summary: "Error Rate HTTP 5xx superior al 5%"
+            description: |
+              El {{ $value | humanizePercentage }} de las requests están retornando errores 5xx.
+              Umbral: 5%. Investigar inmediatamente.
+
     # =========================================================================
     # GRUPO 2: Alertas de Infraestructura
     # =========================================================================
