@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: petclinic-service
   namespace: devops-lab
+  labels:
+    app: petclinic
 spec:
   type: LoadBalancer # Esto le pedirá a GCP una IP Pública
   selector:

@@ -1,6 +1,16 @@
 # =============================================================================
 # ServiceMonitor - Scrape de métricas de Spring Boot Actuator
 # =============================================================================
+# Este monitor le dice a Prometheus Operator que haga scrape de los endpoints
+# /actuator/prometheus de PetClinic en los namespaces staging y devops-lab.
+#
+# REQUISITOS para que funcione:
+#   1. El Service debe tener label "app: petclinic" en metadata.labels
+#   2. El Service debe tener un puerto con nombre "http"
+#   3. El pod debe exponer /actuator/prometheus en el targetPort del Service
+#   4. prometheus-values.yaml debe tener:
+#      serviceMonitorSelectorNilUsesHelmValues: false
+# =============================================================================
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -8,16 +18,46 @@ metadata:
   namespace: observability
   labels:
     app: petclinic
+    release: prometheus
 spec:
+  # --- Buscar Services en estos namespaces ---
   namespaceSelector:
     matchNames:
       - staging
       - devops-lab
+
+  # --- Seleccionar Services que tengan este label ---
+  # IMPORTANTE: Esto busca en metadata.labels del SERVICE, no del Pod.
+  # El Service (k8s/service.yml) DEBE tener: labels: { app: petclinic }
   selector:
     matchLabels:
       app: petclinic
+
+  # --- Configuración de scraping ---
   endpoints:
     - port: http
       path: /actuator/prometheus
       interval: 15s
       scrapeTimeout: 10s
+      # Scheme HTTP (default, Spring Boot Actuator no usa TLS por defecto)
+      scheme: http
+      # Relabeling: agregar labels útiles para queries en Grafana
+      relabelings:
+        # Preservar el namespace del pod como label
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        # Preservar el nombre del pod
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        # Preservar el nombre del servicio
+        - sourceLabels: [__meta_kubernetes_service_name]
+          targetLabel: service
+        # Preservar el nombre del nodo
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          targetLabel: node
+      # Metric relabeling: filtrar métricas innecesarias para ahorrar recursos
+      metricRelabelings:
+        # Eliminar métricas de Go runtime que no necesitamos (opcional)
+        - sourceLabels: [__name__]
+          regex: 'go_.*'
+          action: drop
