@@ -74,6 +74,25 @@ prometheus:
 # --- Alertmanager ---
 alertmanager:
   enabled: true
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname', 'job']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 3h
+      receiver: 'default'
+      routes:
+        - matchers:
+            - notify="teams"
+          receiver: 'teams-webhook'
+    receivers:
+      - name: 'default'
+      - name: 'teams-webhook'
+        webhook_configs:
+          - url: 'https://default8dbe1469c79c4e219d43ca65d9e9c4.75.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/fb53cca9965c46389173c67f7b2125d6/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=vw6YR5DGAWU9DijjTbZEYro9_N6n6ORAB_fi2tHleQo'
+            send_resolved: true
   alertmanagerSpec:
     resources:
       requests:
