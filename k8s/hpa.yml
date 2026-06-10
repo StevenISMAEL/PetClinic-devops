@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: petclinic-deployment
   minReplicas: 1
-  maxReplicas: 10
+  maxReplicas: 2  # Limitado para db-f1-micro (~25 conexiones max)
   metrics:
   - type: Resource
     resource:
