@@ -177,6 +177,8 @@ jobs:
         kubectl apply -f k8s/db-secret.yaml
         kubectl apply -f k8s/
 
+        echo "Forzando actualización de los pods con la nueva imagen..."
+        kubectl rollout restart deployment petclinic-deployment -n staging
     - name: Deploy Observability Stack (Lightweight)
       continue-on-error: true
       run: |
@@ -253,7 +255,7 @@ jobs:
         echo "TARGET_URL=http://$STAGING_IP" >> $GITHUB_ENV
 
     - name: Run OWASP ZAP Baseline Scan
-      uses: zaproxy/action-baseline@v0.12.0
+      uses: zaproxy/action-baseline@v0.15.0
       with:
         target: ${{ env.TARGET_URL }}
         fail_action: false
